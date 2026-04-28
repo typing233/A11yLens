@@ -8,6 +8,19 @@ const scoringService = require('./scoring-service');
 class AccessibilityService {
   constructor() {
     this.browser = null;
+    this.screenshotsDir = path.join(__dirname, '..', 'screenshots');
+    this.ensureScreenshotsDir();
+
+    const cleanup = async () => {
+      await this.close();
+    };
+    process.once('exit', () => { this.close().catch(() => {}); });
+    process.once('SIGINT', async () => { await cleanup(); process.exit(0); });
+    process.once('SIGTERM', async () => { await cleanup(); process.exit(0); });
+  }
+
+  async ensureScreenshotsDir() {
+    await fs.mkdir(this.screenshotsDir, { recursive: true });
   }
 
   async initBrowser() {
@@ -46,9 +59,10 @@ class AccessibilityService {
       const violationsWithPositions = await this.addNodePositions(page, axeResults.violations);
       
       console.log('正在生成截图...');
+      await this.ensureScreenshotsDir();
       const timestamp = Date.now();
-      const originalScreenshotPath = path.join(__dirname, '..', 'screenshots', `original-${timestamp}.png`);
-      const highlightedScreenshotPath = path.join(__dirname, '..', 'screenshots', `highlighted-${timestamp}.png`);
+      const originalScreenshotPath = path.join(this.screenshotsDir, `original-${timestamp}.png`);
+      const highlightedScreenshotPath = path.join(this.screenshotsDir, `highlighted-${timestamp}.png`);
       
       await page.screenshot({ 
         path: originalScreenshotPath, 
@@ -152,11 +166,13 @@ class AccessibilityService {
       
       violation.nodes.forEach(node => {
         if (node.position) {
+          const x = Math.max(0, node.position.x);
+          const y = Math.max(0, node.position.y);
           allProblemAreas.push({
-            x: Math.max(0, node.position.x),
-            y: Math.max(0, node.position.y),
-            width: Math.min(node.position.width, metadata.width),
-            height: Math.min(node.position.height, metadata.height),
+            x,
+            y,
+            width: Math.min(node.position.width, metadata.width - x),
+            height: Math.min(node.position.height, metadata.height - y),
             color,
             impact: violation.impact
           });

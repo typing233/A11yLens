@@ -132,6 +132,9 @@ class A11yLensApp {
     }
     
     const llmConfig = this.getLLMConfig();
+    const scanBtn = document.getElementById('scanBtn');
+    
+    if (scanBtn) scanBtn.disabled = true;
     
     this.hideSection('inputSection');
     this.hideSection('resultsSection');
@@ -168,11 +171,14 @@ class A11yLensApp {
       setTimeout(() => {
         this.hideSection('loadingSection');
         this.showResults(data);
+        if (scanBtn) scanBtn.disabled = false;
       }, 500);
       
     } catch (error) {
       this.hideSection('loadingSection');
+      this.showSection('inputSection');
       this.showError(error.message);
+      if (scanBtn) scanBtn.disabled = false;
     }
   }
 
@@ -382,7 +388,13 @@ class A11yLensApp {
   }
 
   formatMarkdown(text) {
-    let formatted = text
+    // Escape HTML first to prevent XSS, then apply safe markdown transformations
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    let formatted = escaped
       .replace(/^### (.*$)/gm, '<h3>$1</h3>')
       .replace(/^## (.*$)/gm, '<h2>$1</h2>')
       .replace(/^# (.*$)/gm, '<h1>$1</h1>')
