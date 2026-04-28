@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const router = express.Router();
 const accessibilityService = require('../services/accessibility-service');
 const llmService = require('../services/llm-service');
@@ -40,7 +41,10 @@ router.post('/scan', async (req, res) => {
 
 router.get('/screenshot/:filename', (req, res) => {
   const filename = req.params.filename;
-  const path = require('path');
+  // Prevent path traversal: only allow simple filenames without dots (no '..', no subdirectories)
+  if (!filename || !/^[\w\-]+\.png$/.test(filename)) {
+    return res.status(400).json({ error: '无效的文件名' });
+  }
   res.sendFile(path.join(__dirname, '..', 'screenshots', filename));
 });
 
