@@ -41,8 +41,8 @@ router.post('/scan', async (req, res) => {
 
 router.get('/screenshot/:filename', (req, res) => {
   const filename = req.params.filename;
-  // Prevent path traversal: only allow simple filenames (no slashes or dots leading sequences)
-  if (!filename || !/^[\w\-.]+\.png$/.test(filename)) {
+  // Prevent path traversal: only allow simple filenames without dots (no '..', no subdirectories)
+  if (!filename || !/^[\w\-]+\.png$/.test(filename)) {
     return res.status(400).json({ error: '无效的文件名' });
   }
   res.sendFile(path.join(__dirname, '..', 'screenshots', filename));

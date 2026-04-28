@@ -14,7 +14,6 @@ class AccessibilityService {
     const cleanup = async () => {
       await this.close();
     };
-    process.once('exit', () => { this.close().catch(() => {}); });
     process.once('SIGINT', async () => { await cleanup(); process.exit(0); });
     process.once('SIGTERM', async () => { await cleanup(); process.exit(0); });
   }
