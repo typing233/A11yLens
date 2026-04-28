@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A11yLens - 网页无障碍检测工具</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="container">
+        <h1 class="logo">🔍 A11yLens</h1>
+        <p class="tagline">智能网页无障碍检测与分析工具</p>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="container">
+        <section class="input-section">
+          <div class="card">
+            <h2 class="section-title">📋 配置检测</h2>
+            
+            <div class="form-group">
+              <label for="urlInput">目标网页 URL</label>
+              <div class="url-input-wrapper">
+                <input 
+                  type="url" 
+                  id="urlInput" 
+                  placeholder="https://example.com"
+                  required
+                >
+                <button id="scanBtn" class="btn btn-primary">开始检测</button>
+              </div>
+            </div>
+
+            <div class="config-toggle">
+              <button id="toggleConfig" class="btn btn-link">
+                ⚙️ 高级配置（LLM 智能建议）
+              </button>
+            </div>
+
+            <div id="configSection" class="config-section hidden">
+              <h3>LLM 配置（火山方舟）</h3>
+              <p class="config-hint">
+                配置火山方舟 API 以获取智能修复建议。
+                <a href="https://console.volcengine.com/ark" target="_blank">获取 API Key</a>
+              </p>
+              
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="apiKey">API Key</label>
+                  <input 
+                    type="password" 
+                    id="apiKey" 
+                    placeholder="输入您的火山方舟 API Key"
+                  >
+                </div>
+                <div class="form-group flex-1">
+                  <label for="modelName">模型名称（接入点 ID）</label>
+                  <input 
+                    type="text" 
+                    id="modelName" 
+                    placeholder="例如: Doubao-pro-32k"
+                    value="Doubao-pro-32k"
+                  >
+                </div>
+              </div>
+              
+              <div class="checkbox-group">
+                <input type="checkbox" id="useLLM" checked>
+                <label for="useLLM">使用 LLM 生成智能修复建议</label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="loadingSection" class="loading-section hidden">
+          <div class="card loading-card">
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+            </div>
+            <h3 id="loadingText">正在加载页面...</h3>
+            <div class="progress-bar">
+              <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            <p class="loading-hint">
+              提示：首次检测需要下载浏览器，可能需要一些时间
+            </p>
+          </div>
+        </section>
+
+        <section id="errorSection" class="error-section hidden">
+          <div class="card error-card">
+            <div class="error-icon">❌</div>
+            <h3>检测失败</h3>
+            <p id="errorMessage">发生未知错误</p>
+            <button id="retryBtn" class="btn btn-secondary">重新检测</button>
+          </div>
+        </section>
+
+        <section id="resultsSection" class="results-section hidden">
+          <div class="results-header">
+            <h2 class="section-title">📊 检测结果</h2>
+            <div class="results-meta">
+              <span id="scanUrl" class="scan-url"></span>
+              <span id="scanTime" class="scan-time"></span>
+            </div>
+          </div>
+
+          <div class="score-section">
+            <div class="card score-card">
+              <div class="score-display">
+                <div id="scoreCircle" class="score-circle">
+                  <span id="scoreValue" class="score-value">--</span>
+                </div>
+                <div class="score-info">
+                  <span id="scoreGrade" class="score-grade">--</span>
+                  <p id="scoreMessage" class="score-message">--</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="card stats-card">
+              <h3>问题统计</h3>
+              <div class="stats-grid">
+                <div class="stat-item critical">
+                  <span class="stat-label">Critical</span>
+                  <span id="statCritical" class="stat-value">0</span>
+                </div>
+                <div class="stat-item serious">
+                  <span class="stat-label">Serious</span>
+                  <span id="statSerious" class="stat-value">0</span>
+                </div>
+                <div class="stat-item moderate">
+                  <span class="stat-label">Moderate</span>
+                  <span id="statModerate" class="stat-value">0</span>
+                </div>
+                <div class="stat-item minor">
+                  <span class="stat-label">Minor</span>
+                  <span id="statMinor" class="stat-value">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="screenshots-section">
+            <div class="card">
+              <h3>📸 截图对比</h3>
+              <div class="screenshots-compare">
+                <div class="screenshot-wrapper">
+                  <h4>原图</h4>
+                  <div class="screenshot-container">
+                    <img id="originalScreenshot" src="" alt="原始截图" class="screenshot-img">
+                  </div>
+                </div>
+                <div class="screenshot-wrapper">
+                  <h4>问题高亮</h4>
+                  <div class="screenshot-container">
+                    <img id="highlightedScreenshot" src="" alt="高亮截图" class="screenshot-img">
+                  </div>
+                  <div class="legend">
+                    <span class="legend-item critical">Critical</span>
+                    <span class="legend-item serious">Serious</span>
+                    <span class="legend-item moderate">Moderate</span>
+                    <span class="legend-item minor">Minor</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="issues-section">
+            <div class="card">
+              <div class="issues-header">
+                <h3>🔧 详细问题列表</h3>
+                <div class="filter-buttons">
+                  <button class="filter-btn active" data-filter="all">全部</button>
+                  <button class="filter-btn" data-filter="critical">Critical</button>
+                  <button class="filter-btn" data-filter="serious">Serious</button>
+                  <button class="filter-btn" data-filter="moderate">Moderate</button>
+                  <button class="filter-btn" data-filter="minor">Minor</button>
+                </div>
+              </div>
+              
+              <div id="issuesList" class="issues-list">
+              </div>
+            </div>
+          </div>
+
+          <div id="llmSection" class="llm-section hidden">
+            <div class="card">
+              <div class="llm-header">
+                <h3>🤖 LLM 智能修复建议</h3>
+                <span class="llm-badge">由火山方舟提供</span>
+              </div>
+              <div id="llmContent" class="llm-content">
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>A11yLens - 让网页更无障碍</p>
+        <p class="footer-note">
+          基于 WCAG 2.0/2.1 AA 标准检测 | Powered by axe-core & Puppeteer
+        </p>
+      </div>
+    </footer>
+  </div>
+
+  <div id="issueModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">问题详情</h3>
+        <button id="closeModal" class="modal-close">&times;</button>
+      </div>
+      <div id="modalBody" class="modal-body">
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
