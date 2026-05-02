@@ -149,6 +149,32 @@ class A11yLensApp {
       });
     }
 
+    const toggleLabelsBtn = document.getElementById('toggleLabelsBtn');
+    if (toggleLabelsBtn) {
+      toggleLabelsBtn.addEventListener('click', () => {
+        this.showLabels = !this.showLabels;
+        toggleLabelsBtn.classList.toggle('active', this.showLabels);
+        this.updateLabelsVisibility();
+      });
+    }
+
+    const loadVisionSimScreenshotBtn = document.getElementById('loadVisionSimScreenshotBtn');
+    if (loadVisionSimScreenshotBtn) {
+      loadVisionSimScreenshotBtn.addEventListener('click', () => this.loadVisionSimScreenshot());
+    }
+
+    const resetToDemoBtn = document.getElementById('resetToDemoBtn');
+    if (resetToDemoBtn) {
+      resetToDemoBtn.addEventListener('click', () => this.resetToDemoContent());
+    }
+
+    const visionSimUrlInput = document.getElementById('visionSimUrlInput');
+    if (visionSimUrlInput) {
+      visionSimUrlInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.loadVisionSimScreenshot();
+      });
+    }
+
     const analyzeSRBtn = document.getElementById('analyzeSRBtn');
     if (analyzeSRBtn) {
       analyzeSRBtn.addEventListener('click', () => this.analyzeScreenReaderPath());
@@ -778,48 +804,230 @@ class A11yLensApp {
   renderTopology() {
     if (!this.scene || !this.domTree) return;
 
-    this.nodeObjects.forEach(obj => this.scene.remove(obj.mesh));
+    this.nodeObjects.forEach(obj => {
+      if (obj.mesh) this.scene.remove(obj.mesh);
+      if (obj.labelSprite) this.scene.remove(obj.labelSprite);
+    });
     this.nodeObjects = [];
 
+    if (this.connectionLines) {
+      this.connectionLines.forEach(line => this.scene.remove(line));
+    }
+    this.connectionLines = [];
+
     const visibleNodes = this.domTree.allNodes.filter(n => n.isVisible);
-    const centerX = this.domTree.viewport.width / 2;
-    const centerY = this.domTree.viewport.height / 2;
+    
+    const nodeMap = new Map(visibleNodes.map(n => [n.id, n]));
+    
+    const depthMap = new Map();
+    visibleNodes.forEach(node => {
+      if (!depthMap.has(node.depth)) {
+        depthMap.set(node.depth, []);
+      }
+      depthMap.get(node.depth).push(node);
+    });
+
+    const maxDepth = Math.max(...Array.from(depthMap.keys()));
+    const depthSpacing = 25;
+    
+    const radialPositions = this.calculateRadialTreeLayout(visibleNodes, nodeMap, depthSpacing);
 
     visibleNodes.forEach((node, index) => {
+      const pos = radialPositions.get(node.id);
+      if (!pos) return;
+
       const geometry = this.getGeometryForNode(node);
       const color = new THREE.Color(node.color);
       const material = new THREE.MeshPhongMaterial({
         color: color,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.85,
         shininess: 100
       });
 
       const mesh = new THREE.Mesh(geometry, material);
-      
-      const x = (node.position.x - centerX) / 20;
-      const y = (centerY - node.position.y) / 20;
-      const z = node.depth * 2;
-
-      mesh.position.set(x, y, z);
-      
-      mesh.userData = { node, index };
+      mesh.position.set(pos.x, pos.y, pos.z);
+      mesh.userData = { node, index, position: pos };
 
       const edges = new THREE.EdgesGeometry(geometry);
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: 0xffffff, 
+        opacity: 0.4, 
+        transparent: true 
+      });
       const wireframe = new THREE.LineSegments(edges, lineMaterial);
       mesh.add(wireframe);
 
+      const labelSprite = this.createLabelSprite(node);
+      if (labelSprite) {
+        labelSprite.position.set(pos.x, pos.y + 3, pos.z);
+        labelSprite.visible = this.showLabels;
+        this.scene.add(labelSprite);
+      }
+
       this.scene.add(mesh);
-      this.nodeObjects.push({ mesh, node });
+      this.nodeObjects.push({ mesh, node, labelSprite });
     });
 
-    this.addConnectionLines(visibleNodes);
+    this.addRadialConnectionLines(visibleNodes, nodeMap, radialPositions);
+  }
+
+  calculateRadialTreeLayout(nodes, nodeMap, depthSpacing) {
+    const positions = new Map();
+    
+    const rootNode = nodes.find(n => n.depth === 0) || nodes[0];
+    
+    const depthNodesMap = new Map();
+    nodes.forEach(node => {
+      if (!depthNodesMap.has(node.depth)) {
+        depthNodesMap.set(node.depth, []);
+      }
+      depthNodesMap.get(node.depth).push(node);
+    });
+
+    const maxDepth = Math.max(...Array.from(depthNodesMap.keys()));
+    
+    depthNodesMap.forEach((nodesAtDepth, depth) => {
+      const nodeCount = nodesAtDepth.length;
+      const z = depth * depthSpacing;
+      
+      if (depth === 0) {
+        nodesAtDepth.forEach(node => {
+          positions.set(node.id, { x: 0, y: 0, z: 0 });
+        });
+      } else {
+        const parentDepth = depth - 1;
+        const parentsAtDepth = depthNodesMap.get(parentDepth) || [];
+        
+        const nodesPerParent = Math.ceil(nodeCount / Math.max(parentsAtDepth.length, 1));
+        
+        nodesAtDepth.forEach((node, index) => {
+          const parentIndex = Math.floor(index / nodesPerParent);
+          const parent = parentsAtDepth[parentIndex] || parentsAtDepth[0];
+          const parentPos = positions.get(parent?.id);
+          
+          const siblingsOfParent = nodesAtDepth.filter((n, i) => 
+            Math.floor(i / nodesPerParent) === parentIndex
+          );
+          const siblingIndex = siblingsOfParent.indexOf(node);
+          
+          const siblingCount = siblingsOfParent.length;
+          const angleSpread = Math.PI * 0.8;
+          const startAngle = -angleSpread / 2;
+          const angleStep = siblingCount > 1 ? angleSpread / (siblingCount - 1) : 0;
+          const angle = startAngle + siblingIndex * angleStep;
+          
+          const radius = 15 + depth * 8;
+          
+          const baseX = parentPos ? parentPos.x : 0;
+          const baseY = parentPos ? parentPos.y : 0;
+          
+          const x = baseX + Math.cos(angle) * radius + (Math.random() - 0.5) * 2;
+          const y = baseY + Math.sin(angle) * radius + (Math.random() - 0.5) * 2;
+          
+          positions.set(node.id, { x, y, z });
+        });
+      }
+    });
+
+    return positions;
+  }
+
+  createLabelSprite(node) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+
+    context.font = 'Bold 14px Arial';
+    context.textAlign = 'center';
+    
+    let labelText = `<${node.tagName}>`;
+    if (node.idAttribute) {
+      labelText += ` #${node.idAttribute}`;
+    } else if (node.className) {
+      const firstClass = node.className.split(' ')[0];
+      if (firstClass.length < 15) {
+        labelText += ` .${firstClass}`;
+      }
+    }
+
+    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const textWidth = Math.min(context.measureText(labelText).width + 20, 240);
+    context.roundRect(128 - textWidth/2, 5, textWidth, 30, 5);
+    context.fill();
+
+    context.fillStyle = '#ffffff';
+    context.fillText(labelText, 128, 26);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(12, 3, 1);
+    
+    return sprite;
+  }
+
+  updateLabelsVisibility() {
+    if (!this.nodeObjects) return;
+    this.nodeObjects.forEach(obj => {
+      if (obj.labelSprite) {
+        obj.labelSprite.visible = this.showLabels;
+      }
+    });
+  }
+
+  addRadialConnectionLines(nodes, nodeMap, positions) {
+    this.connectionLines = this.connectionLines || [];
+
+    nodes.forEach(node => {
+      if (node.parentId && nodeMap.has(node.parentId)) {
+        const parent = nodeMap.get(node.parentId);
+        const childPos = positions.get(node.id);
+        const parentPos = positions.get(parent.id);
+        
+        if (childPos && parentPos) {
+          const start = new THREE.Vector3(parentPos.x, parentPos.y, parentPos.z);
+          const end = new THREE.Vector3(childPos.x, childPos.y, childPos.z);
+
+          const midZ = (start.z + end.z) / 2;
+          const controlPoint = new THREE.Vector3(
+            (start.x + end.x) / 2,
+            (start.y + end.y) / 2,
+            midZ
+          );
+
+          const curve = new THREE.QuadraticBezierCurve3(start, controlPoint, end);
+          const points = curve.getPoints(20);
+          const geometry = new THREE.BufferGeometry().setFromPoints(points);
+          
+          const depthProgress = (node.depth || 0) / 10;
+          const lineColor = new THREE.Color();
+          lineColor.setHSL(0.6 + depthProgress * 0.2, 0.5, 0.5);
+          
+          const material = new THREE.LineBasicMaterial({ 
+            color: lineColor,
+            opacity: 0.4, 
+            transparent: true 
+          });
+          const line = new THREE.Line(geometry, material);
+          this.scene.add(line);
+          this.connectionLines.push(line);
+        }
+      }
+    });
   }
 
   getGeometryForNode(node) {
-    const width = Math.max(node.position.width / 20, 1);
-    const height = Math.max(node.position.height / 20, 1);
+    const width = Math.max((node.position?.width || 50) / 30, 1.5);
+    const height = Math.max((node.position?.height || 30) / 30, 1.5);
     const depth = 2;
 
     switch (this.renderMode) {
@@ -833,38 +1041,103 @@ class A11yLensApp {
     }
   }
 
-  addConnectionLines(nodes) {
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  async loadVisionSimScreenshot() {
+    const urlInput = document.getElementById('visionSimUrlInput');
+    const url = urlInput ? urlInput.value.trim() : '';
+    
+    if (!url) {
+      alert('请输入目标网页 URL');
+      return;
+    }
+    
+    if (!this.isValidUrl(url)) {
+      alert('请输入有效的 URL，例如 https://example.com');
+      return;
+    }
 
-    nodes.forEach(node => {
-      if (node.parentId && nodeMap.has(node.parentId)) {
-        const parent = nodeMap.get(node.parentId);
-        
-        const centerX = this.domTree.viewport.width / 2;
-        const centerY = this.domTree.viewport.height / 2;
-        
-        const start = new THREE.Vector3(
-          (parent.position.x - centerX) / 20,
-          (centerY - parent.position.y) / 20,
-          parent.depth * 2
-        );
-        
-        const end = new THREE.Vector3(
-          (node.position.x - centerX) / 20,
-          (centerY - node.position.y) / 20,
-          node.depth * 2
-        );
-
-        const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
-        const material = new THREE.LineBasicMaterial({ 
-          color: 0x666666, 
-          opacity: 0.3, 
-          transparent: true 
-        });
-        const line = new THREE.Line(geometry, material);
-        this.scene.add(line);
+    const imageContainer = document.getElementById('simulationImageContainer');
+    const demoWrapper = document.getElementById('demoContentWrapper');
+    const sourceLabel = document.getElementById('simulationSourceLabel');
+    const loadBtn = document.getElementById('loadVisionSimScreenshotBtn');
+    
+    const originalBtnText = loadBtn ? loadBtn.textContent : '加载截图';
+    
+    try {
+      if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.textContent = '加载中...';
       }
-    });
+
+      const response = await fetch('/api/accessibility/screenshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '截图加载失败');
+      }
+
+      const data = await response.json();
+      
+      if (data.screenshotBase64) {
+        if (imageContainer) {
+          imageContainer.innerHTML = `<img src="${data.screenshotBase64}" class="screenshot-image" alt="页面截图">`;
+          imageContainer.classList.remove('hidden');
+        }
+        if (demoWrapper) {
+          demoWrapper.classList.add('hidden');
+        }
+        if (sourceLabel) {
+          sourceLabel.textContent = `真实截图: ${url}`;
+          sourceLabel.classList.add('is-screenshot');
+        }
+        
+        this.currentScreenshotUrl = data.screenshotBase64;
+        
+        const activeBtn = document.querySelector('.sim-type-btn.active');
+        if (activeBtn) {
+          this.applyVisionSimulation(activeBtn.dataset.simType);
+        }
+      }
+
+    } catch (error) {
+      console.error('截图加载失败:', error);
+      alert('截图加载失败: ' + error.message);
+    } finally {
+      if (loadBtn) {
+        loadBtn.disabled = false;
+        loadBtn.textContent = originalBtnText;
+      }
+    }
+  }
+
+  resetToDemoContent() {
+    const imageContainer = document.getElementById('simulationImageContainer');
+    const demoWrapper = document.getElementById('demoContentWrapper');
+    const sourceLabel = document.getElementById('simulationSourceLabel');
+    
+    if (imageContainer) {
+      imageContainer.classList.add('hidden');
+      imageContainer.innerHTML = '';
+    }
+    if (demoWrapper) {
+      demoWrapper.classList.remove('hidden');
+    }
+    if (sourceLabel) {
+      sourceLabel.textContent = 'Demo 内容';
+      sourceLabel.classList.remove('is-screenshot');
+    }
+    
+    this.currentScreenshotUrl = null;
+    
+    const activeBtn = document.querySelector('.sim-type-btn.active');
+    if (activeBtn) {
+      this.applyVisionSimulation(activeBtn.dataset.simType);
+    }
   }
 
   onMouseMove(event) {

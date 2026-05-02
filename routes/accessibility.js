@@ -5,6 +5,28 @@ const accessibilityService = require('../services/accessibility-service');
 const llmService = require('../services/llm-service');
 const domTreeService = require('../services/dom-tree-service');
 
+router.post('/screenshot', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: '请提供目标网页 URL' });
+    }
+    
+    console.log(`正在截图: ${url}`);
+    
+    const result = await accessibilityService.captureScreenshot(url);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('截图失败:', error);
+    res.status(500).json({ 
+      error: '截图过程中发生错误', 
+      message: error.message 
+    });
+  }
+});
+
 router.post('/scan', async (req, res) => {
   try {
     const { url, llmConfig } = req.body;
