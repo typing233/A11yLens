@@ -1,7 +1,7 @@
 {
   "name": "a11y-lens",
-  "version": "1.0.0",
-  "description": "Web accessibility detection and analysis tool",
+  "version": "2.0.0",
+  "description": "Web accessibility detection and analysis tool with 3D visualization and arcade testing",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,8 @@
     "sharp": "^0.33.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "axios": "^1.6.2"
+    "axios": "^1.6.2",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
