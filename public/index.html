@@ -3,210 +3,673 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A11yLens - 网页无障碍检测工具</title>
+  <title>A11yLens v2.0 - 网页无障碍检测工具</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="container">
-        <h1 class="logo">🔍 A11yLens</h1>
-        <p class="tagline">智能网页无障碍检测与分析工具</p>
+        <div class="header-top">
+          <h1 class="logo">🔍 A11yLens <span class="version-badge">v2.0</span></h1>
+          <p class="tagline">智能网页无障碍检测与分析工具</p>
+        </div>
+        <nav class="main-nav">
+          <button class="nav-btn active" data-tab="scan">
+            <span class="nav-icon">🔍</span>
+            <span>无障碍检测</span>
+          </button>
+          <button class="nav-btn" data-tab="topology">
+            <span class="nav-icon">🌐</span>
+            <span>3D 拓扑图</span>
+          </button>
+          <button class="nav-btn" data-tab="screen-reader">
+            <span class="nav-icon">🔊</span>
+            <span>屏幕阅读器分析</span>
+          </button>
+          <button class="nav-btn" data-tab="arcade">
+            <span class="nav-icon">🎮</span>
+            <span>街机沙盒</span>
+          </button>
+          <button class="nav-btn" data-tab="config">
+            <span class="nav-icon">⚙️</span>
+            <span>系统配置</span>
+          </button>
+        </nav>
       </div>
     </header>
 
     <main class="main">
       <div class="container">
-        <section id="inputSection" class="input-section">
+        
+        <section id="tab-scan" class="tab-content">
           <div class="card">
             <h2 class="section-title">📋 配置检测</h2>
             
             <div class="form-group">
-              <label for="urlInput">目标网页 URL</label>
+              <label for="scanUrlInput">目标网页 URL</label>
               <div class="url-input-wrapper">
                 <input 
                   type="url" 
-                  id="urlInput" 
+                  id="scanUrlInput" 
                   placeholder="https://example.com"
                   required
                 >
-                <button id="scanBtn" class="btn btn-primary">开始检测</button>
+                <button id="startScanBtn" class="btn btn-primary">开始检测</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="scanLoadingSection" class="loading-section hidden">
+            <div class="card loading-card">
+              <div class="loading-spinner">
+                <div class="spinner"></div>
+              </div>
+              <h3 id="scanLoadingText">正在加载页面...</h3>
+              <div class="progress-bar">
+                <div id="scanProgressFill" class="progress-fill" style="width: 0%"></div>
+              </div>
+              <p class="loading-hint">
+                提示：首次检测需要下载浏览器，可能需要一些时间
+              </p>
+            </div>
+          </div>
+
+          <div id="scanErrorSection" class="error-section hidden">
+            <div class="card error-card">
+              <div class="error-icon">❌</div>
+              <h3>检测失败</h3>
+              <p id="scanErrorMessage">发生未知错误</p>
+              <button id="scanRetryBtn" class="btn btn-secondary">重新检测</button>
+            </div>
+          </div>
+
+          <div id="scanResultsSection" class="results-section hidden">
+            <div class="results-header">
+              <h2 class="section-title">📊 检测结果</h2>
+              <div class="results-meta">
+                <span id="scanResultUrl" class="scan-url"></span>
+                <span id="scanResultTime" class="scan-time"></span>
               </div>
             </div>
 
-            <div class="config-toggle">
-              <button id="toggleConfig" class="btn btn-link">
-                ⚙️ 高级配置（LLM 智能建议）
-              </button>
+            <div class="score-section">
+              <div class="card score-card">
+                <div class="score-display">
+                  <div id="scanScoreCircle" class="score-circle">
+                    <span id="scanScoreValue" class="score-value">--</span>
+                  </div>
+                  <div class="score-info">
+                    <span id="scanScoreGrade" class="score-grade">--</span>
+                    <p id="scanScoreMessage" class="score-message">--</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="card stats-card">
+                <h3>问题统计</h3>
+                <div class="stats-grid">
+                  <div class="stat-item critical">
+                    <span class="stat-label">Critical</span>
+                    <span id="scanStatCritical" class="stat-value">0</span>
+                  </div>
+                  <div class="stat-item serious">
+                    <span class="stat-label">Serious</span>
+                    <span id="scanStatSerious" class="stat-value">0</span>
+                  </div>
+                  <div class="stat-item moderate">
+                    <span class="stat-label">Moderate</span>
+                    <span id="scanStatModerate" class="stat-value">0</span>
+                  </div>
+                  <div class="stat-item minor">
+                    <span class="stat-label">Minor</span>
+                    <span id="scanStatMinor" class="stat-value">0</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div id="configSection" class="config-section hidden">
-              <h3>LLM 配置（火山方舟）</h3>
-              <p class="config-hint">
-                配置火山方舟 API 以获取智能修复建议。
-                <a href="https://console.volcengine.com/ark" target="_blank">获取 API Key</a>
-              </p>
+            <div class="screenshots-section">
+              <div class="card">
+                <h3>📸 截图对比</h3>
+                <div class="screenshots-compare">
+                  <div class="screenshot-wrapper">
+                    <h4>原图</h4>
+                    <div class="screenshot-container">
+                      <img id="scanOriginalImg" src="" alt="原始截图" class="screenshot-img">
+                    </div>
+                  </div>
+                  <div class="screenshot-wrapper">
+                    <h4>问题高亮</h4>
+                    <div class="screenshot-container">
+                      <img id="scanHighlightedImg" src="" alt="高亮截图" class="screenshot-img">
+                    </div>
+                    <div class="legend">
+                      <span class="legend-item critical">Critical</span>
+                      <span class="legend-item serious">Serious</span>
+                      <span class="legend-item moderate">Moderate</span>
+                      <span class="legend-item minor">Minor</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="issues-section">
+              <div class="card">
+                <div class="issues-header">
+                  <h3>🔧 详细问题列表</h3>
+                  <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">全部</button>
+                    <button class="filter-btn" data-filter="critical">Critical</button>
+                    <button class="filter-btn" data-filter="serious">Serious</button>
+                    <button class="filter-btn" data-filter="moderate">Moderate</button>
+                    <button class="filter-btn" data-filter="minor">Minor</button>
+                  </div>
+                </div>
+                
+                <div id="scanIssuesList" class="issues-list">
+                </div>
+              </div>
+            </div>
+
+            <div id="scanLLMSection" class="llm-section hidden">
+              <div class="card">
+                <div class="llm-header">
+                  <h3>🤖 LLM 智能修复建议</h3>
+                  <span class="llm-badge">AI 生成</span>
+                </div>
+                <div id="scanLLMContent" class="llm-content">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-topology" class="tab-content hidden">
+          <div class="card">
+            <h2 class="section-title">🌐 DOM 结构 3D 拓扑图</h2>
+            <p class="section-desc">将页面 DOM 结构渲染成 3D 空间映射图，直观展示元素层级关系</p>
+            
+            <div class="form-group">
+              <label for="topologyUrlInput">目标网页 URL</label>
+              <div class="url-input-wrapper">
+                <input 
+                  type="url" 
+                  id="topologyUrlInput" 
+                  placeholder="https://example.com"
+                >
+                <button id="loadTopologyBtn" class="btn btn-primary">加载 3D 视图</button>
+              </div>
+            </div>
+
+            <div class="topology-controls">
+              <div class="control-group">
+                <label>渲染模式</label>
+                <div class="control-buttons">
+                  <button class="control-btn active" data-render-mode="blocks">块状</button>
+                  <button class="control-btn" data-render-mode="spheres">球体</button>
+                  <button class="control-btn" data-render-mode="lines">连线</button>
+                </div>
+              </div>
+              <div class="control-group">
+                <label>视图控制</label>
+                <div class="control-buttons">
+                  <button class="control-btn" id="resetCameraBtn">重置视角</button>
+                  <button class="control-btn" id="toggleAutoRotateBtn">自动旋转</button>
+                  <button class="control-btn" id="toggleLabelsBtn">显示标签</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="topology-stats" id="topologyStats">
+              <div class="stat-box">
+                <span class="stat-label">总节点数</span>
+                <span class="stat-number" id="topologyTotalNodes">--</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">语义化标签</span>
+                <span class="stat-number" id="topologySemanticCount">--</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">可聚焦元素</span>
+                <span class="stat-number" id="topologyFocusableCount">--</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">最大深度</span>
+                <span class="stat-number" id="topologyMaxDepth">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div id="topologyCanvasContainer" class="topology-canvas-container">
+              <div id="topologyPlaceholder" class="topology-placeholder">
+                <div class="placeholder-icon">🌐</div>
+                <p>输入 URL 并点击"加载 3D 视图"开始</p>
+              </div>
+              <canvas id="topologyCanvas"></canvas>
+              <div id="topologyNodeInfo" class="node-info-panel hidden">
+                <div class="node-info-header">
+                  <span id="nodeInfoTagName" class="node-tag">div</span>
+                  <button class="close-panel">&times;</button>
+                </div>
+                <div class="node-info-content">
+                  <div class="info-row">
+                    <span class="info-label">ID:</span>
+                    <span id="nodeInfoId" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Class:</span>
+                    <span id="nodeInfoClass" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">位置:</span>
+                    <span id="nodeInfoPosition" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">尺寸:</span>
+                    <span id="nodeInfoSize" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">语义化:</span>
+                    <span id="nodeInfoSemantic" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">可聚焦:</span>
+                    <span id="nodeInfoFocusable" class="info-value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">文本:</span>
+                    <span id="nodeInfoText" class="info-value info-text">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>🎨 图例说明</h3>
+            <div class="legend-grid" id="topologyLegend">
+              <div class="legend-item">
+                <span class="legend-color" style="background: #1e3a5f;"></span>
+                <span>html</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #ff6b6b;"></span>
+                <span>header</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #4ecdc4;"></span>
+                <span>nav</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #45b7d1;"></span>
+                <span>main</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #74b9ff;"></span>
+                <span>div</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #fdcb6e;"></span>
+                <span>button</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #e17055;"></span>
+                <span>a (链接)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color" style="background: #00b894;"></span>
+                <span>img (图片)</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-screen-reader" class="tab-content hidden">
+          <div class="card">
+            <h2 class="section-title">🔊 屏幕阅读器路径分析</h2>
+            <p class="section-desc">使用 LLM 推演屏幕阅读器的解析路径，识别无障碍导航问题</p>
+            
+            <div class="form-group">
+              <label for="srUrlInput">目标网页 URL</label>
+              <div class="url-input-wrapper">
+                <input 
+                  type="url" 
+                  id="srUrlInput" 
+                  placeholder="https://example.com"
+                >
+                <button id="analyzeSRBtn" class="btn btn-primary">开始分析</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="srLoadingSection" class="loading-section hidden">
+            <div class="card loading-card">
+              <div class="loading-spinner">
+                <div class="spinner"></div>
+              </div>
+              <h3 id="srLoadingText">正在分析 DOM 结构...</h3>
+              <div class="progress-bar">
+                <div id="srProgressFill" class="progress-fill" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="srResultsSection" class="hidden">
+            <div class="card">
+              <h3>📋 可聚焦元素导航顺序</h3>
+              <div class="focus-order-list" id="srFocusOrderList">
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>🏷️ 语义化地标识别</h3>
+              <div class="semantic-landmarks" id="srSemanticLandmarks">
+              </div>
+            </div>
+
+            <div id="srAnalysisSection" class="llm-section">
+              <div class="card">
+                <div class="llm-header">
+                  <h3>🤖 LLM 屏幕阅读器分析</h3>
+                  <span class="llm-badge">AI 推演</span>
+                </div>
+                <div id="srAnalysisContent" class="llm-content">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-arcade" class="tab-content hidden">
+          <div class="card">
+            <h2 class="section-title">🎮 街机沙盒测试模块</h2>
+            <p class="section-desc">通过互动游戏体验视觉障碍用户的浏览体验，测试键盘焦点导航能力</p>
+            
+            <div class="arcade-modes">
+              <div class="mode-card" data-mode="vision-sim">
+                <div class="mode-icon">👁️</div>
+                <h3>视觉障碍模拟器</h3>
+                <p>模拟不同类型的视觉障碍，体验真实的视觉限制</p>
+                <button class="btn btn-secondary mode-btn" data-mode="vision-sim">开始模拟</button>
+              </div>
+              <div class="mode-card" data-mode="focus-parkour">
+                <div class="mode-icon">⌨️</div>
+                <h3>焦点跑酷</h3>
+                <p>使用纯键盘操作通过一系列焦点挑战，测试键盘导航能力</p>
+                <button class="btn btn-secondary mode-btn" data-mode="focus-parkour">开始挑战</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="visionSimSection" class="hidden">
+            <div class="card">
+              <div class="simulator-controls">
+                <h3>👁️ 视觉障碍模拟器</h3>
+                <div class="control-group">
+                  <label>选择视觉障碍类型</label>
+                  <div class="simulation-types">
+                    <button class="sim-type-btn active" data-sim-type="normal">正常</button>
+                    <button class="sim-type-btn" data-sim-type="protanopia">红色盲</button>
+                    <button class="sim-type-btn" data-sim-type="deuteranopia">绿色盲</button>
+                    <button class="sim-type-btn" data-sim-type="tritanopia">蓝色盲</button>
+                    <button class="sim-type-btn" data-sim-type="achromatopsia">全色盲</button>
+                    <button class="sim-type-btn" data-sim-type="low-vision">低视力</button>
+                    <button class="sim-type-btn" data-sim-type="glaucoma">青光眼</button>
+                    <button class="sim-type-btn" data-sim-type="macular">黄斑变性</button>
+                  </div>
+                </div>
+                <div class="control-group">
+                  <label>严重程度</label>
+                  <input type="range" id="visionSeverity" min="0" max="100" value="100">
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>测试区域</h3>
+              <div class="simulator-container">
+                <div id="visionPreview" class="vision-preview">
+                  <div class="demo-content">
+                    <h1>示例页面内容</h1>
+                    <div class="demo-grid">
+                      <div class="demo-item" style="background: #ff6b6b;">
+                        <span class="demo-text">红色按钮</span>
+                      </div>
+                      <div class="demo-item" style="background: #4ecdc4;">
+                        <span class="demo-text">绿色按钮</span>
+                      </div>
+                      <div class="demo-item" style="background: #45b7d1;">
+                        <span class="demo-text">蓝色按钮</span>
+                      </div>
+                      <div class="demo-item" style="background: #fdcb6e;">
+                        <span class="demo-text">黄色按钮</span>
+                      </div>
+                      <div class="demo-item" style="background: #e17055;">
+                        <span class="demo-text">橙色按钮</span>
+                      </div>
+                      <div class="demo-item" style="background: #6c5ce7;">
+                        <span class="demo-text">紫色按钮</span>
+                      </div>
+                    </div>
+                    <p class="demo-description">
+                      这是一段测试文本，用于测试不同视觉障碍下的阅读体验。
+                      <strong>加粗文本</strong> 和 <em>斜体文本</em> 也应该清晰可见。
+                    </p>
+                    <div class="demo-form">
+                      <div class="demo-form-row">
+                        <label>用户名:</label>
+                        <input type="text" placeholder="请输入用户名">
+                      </div>
+                      <div class="demo-form-row">
+                        <label>密码:</label>
+                        <input type="password" placeholder="请输入密码">
+                      </div>
+                      <button class="demo-submit">提交</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="focusParkourSection" class="hidden">
+            <div class="card">
+              <div class="parkour-header">
+                <div class="parkour-stats">
+                  <div class="stat-box">
+                    <span class="stat-label">关卡</span>
+                    <span class="stat-number" id="parkourLevel">1</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-label">得分</span>
+                    <span class="stat-number" id="parkourScore">0</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-label">时间</span>
+                    <span class="stat-number" id="parkourTime">0s</span>
+                  </div>
+                </div>
+                <div class="parkour-controls">
+                  <button id="startParkourBtn" class="btn btn-primary">开始游戏</button>
+                  <button id="resetParkourBtn" class="btn btn-secondary">重置</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="parkour-instructions" id="parkourInstructions">
+                <h3>🎯 游戏规则</h3>
+                <ul>
+                  <li>使用 <kbd>Tab</kbd> 键在可聚焦元素间导航</li>
+                  <li>使用 <kbd>Enter</kbd> 或 <kbd>Space</kbd> 键激活当前聚焦的元素</li>
+                  <li>按顺序激活所有目标元素（闪烁的按钮）</li>
+                  <li>完成所有目标即可进入下一关</li>
+                  <li>⚠️ 鼠标被禁用，只能使用键盘！</li>
+                </ul>
+              </div>
+              <div id="parkourGameArea" class="parkour-game-area">
+                <div class="game-start-message" id="gameStartMessage">
+                  <div class="start-icon">⌨️</div>
+                  <h2>焦点跑酷</h2>
+                  <p>点击"开始游戏"后，只能使用键盘操作</p>
+                  <p class="hint">Tab 导航 | Enter/Space 确认</p>
+                </div>
+                <div id="parkourTargets" class="parkour-targets hidden">
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>🏆 成就记录</h3>
+              <div class="achievements-list" id="achievementsList">
+                <div class="achievement-item locked">
+                  <span class="achievement-icon">🔒</span>
+                  <span class="achievement-name">初学者</span>
+                  <span class="achievement-desc">完成第一关</span>
+                </div>
+                <div class="achievement-item locked">
+                  <span class="achievement-icon">🔒</span>
+                  <span class="achievement-name">速通达人</span>
+                  <span class="achievement-desc">10秒内完成任意关卡</span>
+                </div>
+                <div class="achievement-item locked">
+                  <span class="achievement-icon">🔒</span>
+                  <span class="achievement-name">导航大师</span>
+                  <span class="achievement-desc">连续完成5关</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-config" class="tab-content hidden">
+          <div class="card">
+            <h2 class="section-title">⚙️ LLM 配置</h2>
+            <p class="section-desc">配置 OpenAI 兼容的 LLM API，用于智能修复建议和屏幕阅读器路径分析</p>
+            
+            <div class="config-form">
+              <div class="form-group">
+                <label for="configBaseUrl">API Base URL <span class="required">*</span></label>
+                <input 
+                  type="text" 
+                  id="configBaseUrl" 
+                  placeholder="https://api.openai.com/v1 或自定义地址"
+                >
+                <p class="input-hint">支持 OpenAI 兼容的 API 端点，如 Ollama、LM Studio、火山方舟等</p>
+              </div>
               
-              <div class="form-row">
-                <div class="form-group flex-1">
-                  <label for="apiKey">API Key</label>
+              <div class="form-group">
+                <label for="configApiKey">API Key <span class="required">*</span></label>
+                <div class="password-input-wrapper">
                   <input 
                     type="password" 
-                    id="apiKey" 
-                    placeholder="输入您的火山方舟 API Key"
+                    id="configApiKey" 
+                    placeholder="输入您的 API Key"
                   >
-                </div>
-                <div class="form-group flex-1">
-                  <label for="modelName">模型名称（接入点 ID）</label>
-                  <input 
-                    type="text" 
-                    id="modelName" 
-                    placeholder="例如: Doubao-pro-32k"
-                    value="Doubao-pro-32k"
-                  >
+                  <button type="button" class="toggle-visibility" id="toggleApiKeyVisibility">👁️</button>
                 </div>
               </div>
               
-              <div class="checkbox-group">
-                <input type="checkbox" id="useLLM" checked>
-                <label for="useLLM">使用 LLM 生成智能修复建议</label>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="loadingSection" class="loading-section hidden">
-          <div class="card loading-card">
-            <div class="loading-spinner">
-              <div class="spinner"></div>
-            </div>
-            <h3 id="loadingText">正在加载页面...</h3>
-            <div class="progress-bar">
-              <div id="progressFill" class="progress-fill" style="width: 0%"></div>
-            </div>
-            <p class="loading-hint">
-              提示：首次检测需要下载浏览器，可能需要一些时间
-            </p>
-          </div>
-        </section>
-
-        <section id="errorSection" class="error-section hidden">
-          <div class="card error-card">
-            <div class="error-icon">❌</div>
-            <h3>检测失败</h3>
-            <p id="errorMessage">发生未知错误</p>
-            <button id="retryBtn" class="btn btn-secondary">重新检测</button>
-          </div>
-        </section>
-
-        <section id="resultsSection" class="results-section hidden">
-          <div class="results-header">
-            <h2 class="section-title">📊 检测结果</h2>
-            <div class="results-meta">
-              <span id="scanUrl" class="scan-url"></span>
-              <span id="scanTime" class="scan-time"></span>
-            </div>
-          </div>
-
-          <div class="score-section">
-            <div class="card score-card">
-              <div class="score-display">
-                <div id="scoreCircle" class="score-circle">
-                  <span id="scoreValue" class="score-value">--</span>
-                </div>
-                <div class="score-info">
-                  <span id="scoreGrade" class="score-grade">--</span>
-                  <p id="scoreMessage" class="score-message">--</p>
-                </div>
-              </div>
-            </div>
-            
-            <div class="card stats-card">
-              <h3>问题统计</h3>
-              <div class="stats-grid">
-                <div class="stat-item critical">
-                  <span class="stat-label">Critical</span>
-                  <span id="statCritical" class="stat-value">0</span>
-                </div>
-                <div class="stat-item serious">
-                  <span class="stat-label">Serious</span>
-                  <span id="statSerious" class="stat-value">0</span>
-                </div>
-                <div class="stat-item moderate">
-                  <span class="stat-label">Moderate</span>
-                  <span id="statModerate" class="stat-value">0</span>
-                </div>
-                <div class="stat-item minor">
-                  <span class="stat-label">Minor</span>
-                  <span id="statMinor" class="stat-value">0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="screenshots-section">
-            <div class="card">
-              <h3>📸 截图对比</h3>
-              <div class="screenshots-compare">
-                <div class="screenshot-wrapper">
-                  <h4>原图</h4>
-                  <div class="screenshot-container">
-                    <img id="originalScreenshot" src="" alt="原始截图" class="screenshot-img">
-                  </div>
-                </div>
-                <div class="screenshot-wrapper">
-                  <h4>问题高亮</h4>
-                  <div class="screenshot-container">
-                    <img id="highlightedScreenshot" src="" alt="高亮截图" class="screenshot-img">
-                  </div>
-                  <div class="legend">
-                    <span class="legend-item critical">Critical</span>
-                    <span class="legend-item serious">Serious</span>
-                    <span class="legend-item moderate">Moderate</span>
-                    <span class="legend-item minor">Minor</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="issues-section">
-            <div class="card">
-              <div class="issues-header">
-                <h3>🔧 详细问题列表</h3>
-                <div class="filter-buttons">
-                  <button class="filter-btn active" data-filter="all">全部</button>
-                  <button class="filter-btn" data-filter="critical">Critical</button>
-                  <button class="filter-btn" data-filter="serious">Serious</button>
-                  <button class="filter-btn" data-filter="moderate">Moderate</button>
-                  <button class="filter-btn" data-filter="minor">Minor</button>
-                </div>
+              <div class="form-group">
+                <label for="configModelName">Model Name <span class="required">*</span></label>
+                <input 
+                  type="text" 
+                  id="configModelName" 
+                  placeholder="例如: gpt-3.5-turbo, claude-sonnet, llama3"
+                  value="gpt-3.5-turbo"
+                >
               </div>
               
-              <div id="issuesList" class="issues-list">
+              <div class="config-actions">
+                <button id="testConnectionBtn" class="btn btn-secondary">测试连接</button>
+                <button id="saveConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+              
+              <div id="connectionStatus" class="connection-status hidden">
               </div>
             </div>
           </div>
 
-          <div id="llmSection" class="llm-section hidden">
-            <div class="card">
-              <div class="llm-header">
-                <h3>🤖 LLM 智能修复建议</h3>
-                <span class="llm-badge">由火山方舟提供</span>
+          <div class="card">
+            <h3>💡 常用配置示例</h3>
+            <div class="preset-configs">
+              <div class="preset-item">
+                <div class="preset-header">
+                  <span class="preset-name">OpenAI</span>
+                </div>
+                <div class="preset-details">
+                  <p><strong>Base URL:</strong> https://api.openai.com/v1</p>
+                  <p><strong>Model:</strong> gpt-3.5-turbo, gpt-4, gpt-4o</p>
+                </div>
+                <button class="btn btn-small preset-btn" data-baseurl="https://api.openai.com/v1">使用此配置</button>
               </div>
-              <div id="llmContent" class="llm-content">
+              <div class="preset-item">
+                <div class="preset-header">
+                  <span class="preset-name">Ollama (本地)</span>
+                </div>
+                <div class="preset-details">
+                  <p><strong>Base URL:</strong> http://localhost:11434/v1</p>
+                  <p><strong>Model:</strong> llama3, mistral, codellama 等</p>
+                </div>
+                <button class="btn btn-small preset-btn" data-baseurl="http://localhost:11434/v1">使用此配置</button>
+              </div>
+              <div class="preset-item">
+                <div class="preset-header">
+                  <span class="preset-name">火山方舟</span>
+                </div>
+                <div class="preset-details">
+                  <p><strong>Base URL:</strong> https://ark.cn-beijing.volces.com/api/v3</p>
+                  <p><strong>Model:</strong> 接入点 ID (如 ep-xxx)</p>
+                </div>
+                <button class="btn btn-small preset-btn" data-baseurl="https://ark.cn-beijing.volces.com/api/v3">使用此配置</button>
+              </div>
+              <div class="preset-item">
+                <div class="preset-header">
+                  <span class="preset-name">LM Studio (本地)</span>
+                </div>
+                <div class="preset-details">
+                  <p><strong>Base URL:</strong> http://localhost:1234/v1</p>
+                  <p><strong>Model:</strong> 已加载的模型名称</p>
+                </div>
+                <button class="btn btn-small preset-btn" data-baseurl="http://localhost:1234/v1">使用此配置</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>📝 当前配置状态</h3>
+            <div class="config-status" id="currentConfigStatus">
+              <div class="status-item">
+                <span class="status-label">Base URL:</span>
+                <span class="status-value" id="currentBaseUrl">未配置</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">API Key:</span>
+                <span class="status-value" id="currentApiKeyStatus">未配置</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Model:</span>
+                <span class="status-value" id="currentModelName">未配置</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">连接状态:</span>
+                <span class="status-value status-unknown" id="connectionStatusDisplay">未测试</span>
               </div>
             </div>
           </div>
         </section>
+
       </div>
     </main>
 
     <footer class="footer">
       <div class="container">
-        <p>A11yLens - 让网页更无障碍</p>
+        <p>A11yLens v2.0 - 让网页更无障碍</p>
         <p class="footer-note">
-          基于 WCAG 2.0/2.1 AA 标准检测 | Powered by axe-core & Puppeteer
+          基于 WCAG 2.0/2.1 AA 标准检测 | Powered by axe-core & Puppeteer & Three.js
         </p>
       </div>
     </footer>
