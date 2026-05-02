@@ -412,6 +412,20 @@
               <div class="simulator-controls">
                 <h3>👁️ 视觉障碍模拟器</h3>
                 <div class="control-group">
+                  <label>目标网页 URL</label>
+                  <div class="url-input-wrapper">
+                    <input 
+                      type="url" 
+                      id="visionSimUrlInput" 
+                      placeholder="输入 URL 加载真实页面截图（可选，留空使用 Demo）"
+                    >
+                    <button id="loadVisionSimScreenshotBtn" class="btn btn-primary">加载截图</button>
+                  </div>
+                  <div class="control-hint">
+                    <button id="resetToDemoBtn" class="btn btn-small btn-secondary">重置为 Demo 内容</button>
+                  </div>
+                </div>
+                <div class="control-group">
                   <label>选择视觉障碍类型</label>
                   <div class="simulation-types">
                     <button class="sim-type-btn active" data-sim-type="normal">正常</button>
@@ -431,30 +445,32 @@
               </div>
             </div>
             <div class="card">
-              <h3>测试区域</h3>
+              <h3>测试区域 <span id="simulationSourceLabel" class="source-label">Demo 内容</span></h3>
               <div class="simulator-container">
                 <div id="visionPreview" class="vision-preview">
-                  <div class="demo-content">
-                    <h1>示例页面内容</h1>
-                    <div class="demo-grid">
-                      <div class="demo-item" style="background: #ff6b6b;">
-                        <span class="demo-text">红色按钮</span>
-                      </div>
-                      <div class="demo-item" style="background: #4ecdc4;">
-                        <span class="demo-text">绿色按钮</span>
-                      </div>
-                      <div class="demo-item" style="background: #45b7d1;">
-                        <span class="demo-text">蓝色按钮</span>
-                      </div>
-                      <div class="demo-item" style="background: #fdcb6e;">
-                        <span class="demo-text">黄色按钮</span>
-                      </div>
-                      <div class="demo-item" style="background: #e17055;">
-                        <span class="demo-text">橙色按钮</span>
-                      </div>
-                      <div class="demo-item" style="background: #6c5ce7;">
-                        <span class="demo-text">紫色按钮</span>
-                      </div>
+                  <div id="simulationImageContainer" class="hidden"></div>
+                  <div id="demoContentWrapper" class="demo-content-wrapper">
+                    <div class="demo-content">
+                      <h1>示例页面内容</h1>
+                      <div class="demo-grid">
+                        <div class="demo-item" style="background: #ff6b6b;">
+                          <span class="demo-text">红色按钮</span>
+                        </div>
+                        <div class="demo-item" style="background: #4ecdc4;">
+                          <span class="demo-text">绿色按钮</span>
+                        </div>
+                        <div class="demo-item" style="background: #45b7d1;">
+                          <span class="demo-text">蓝色按钮</span>
+                        </div>
+                        <div class="demo-item" style="background: #fdcb6e;">
+                          <span class="demo-text">黄色按钮</span>
+                        </div>
+                        <div class="demo-item" style="background: #e17055;">
+                          <span class="demo-text">橙色按钮</span>
+                        </div>
+                        <div class="demo-item" style="background: #6c5ce7;">
+                          <span class="demo-text">紫色按钮</span>
+                        </div>
                     </div>
                     <p class="demo-description">
                       这是一段测试文本，用于测试不同视觉障碍下的阅读体验。

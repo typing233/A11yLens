@@ -36,6 +36,48 @@ class AccessibilityService {
     return this.browser;
   }
 
+  async captureScreenshot(url) {
+    const browser = await this.initBrowser();
+    const page = await browser.newPage();
+    
+    try {
+      await page.setViewport({ width: 1280, height: 800 });
+      
+      console.log(`正在截图: ${url}`);
+      await page.goto(url, { 
+        waitUntil: 'networkidle2',
+        timeout: 30000 
+      });
+
+      await this.ensureScreenshotsDir();
+      const timestamp = Date.now();
+      const screenshotPath = path.join(this.screenshotsDir, `vision-sim-${timestamp}.png`);
+      
+      await page.screenshot({ 
+        path: screenshotPath, 
+        fullPage: true 
+      });
+
+      const base64 = await fs.readFile(screenshotPath, 'base64');
+      
+      await page.close();
+      
+      return {
+        success: true,
+        url,
+        screenshotPath: `/screenshots/vision-sim-${timestamp}.png`,
+        screenshotBase64: `data:image/png;base64,${base64}`,
+        timestamp
+      };
+      
+    } catch (error) {
+      try {
+        await page.close();
+      } catch (e) {}
+      throw error;
+    }
+  }
+
   async scanPage(url) {
     const browser = await this.initBrowser();
     const page = await browser.newPage();
